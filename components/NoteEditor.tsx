@@ -1,10 +1,11 @@
 
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Note, Notebook, AppSettings } from '../types';
 import NoteEditorToolbar from './NoteEditorToolbar';
-import { ICON_TRASH, ICON_LINK, ICON_CALENDAR } from '../constants';
+import { ICON_TRASH, ICON_CALENDAR } from '../constants'; // ICON_LINK removed
 import Modal from './Modal';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom'; 
 
 
 interface NoteEditorProps {
@@ -27,7 +28,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   settings
 }) => {
   const [title, setTitle] = useState('');
-  // contentHTML state is still used to store the editor's content for saving.
   const [contentHTML, setContentHTML] = useState('');
   const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [tagsString, setTagsString] = useState('');
@@ -36,32 +36,31 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [linkSearchTerm, setLinkSearchTerm] = useState('');
-  const [selectedRange, setSelectedRange] = useState<Range | null>(null);
+  // Removed state related to Link Modal
+  // const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  // const [linkSearchTerm, setLinkSearchTerm] = useState('');
+  // const [selectedRange, setSelectedRange] = useState<Range | null>(null);
   
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
   const [reminderDate, setReminderDate] = useState('');
   const [reminderTime, setReminderTime] = useState('');
 
-  const navigate = useNavigate(); // For handling internal link clicks
+  const navigate = useNavigate(); 
 
 
   useEffect(() => {
     if (noteToEdit) {
       setTitle(noteToEdit.title);
-      setContentHTML(noteToEdit.contentHTML); // Sync state
+      setContentHTML(noteToEdit.contentHTML); 
       setSelectedNotebookId(noteToEdit.notebookId);
       setTagsString(noteToEdit.tags?.join(', ') || '');
       setReminder(noteToEdit.reminder || '');
       
-      // Imperatively set content when noteToEdit.id changes
       if (editorRef.current) {
         if (editorRef.current.dataset.currentNoteId !== noteToEdit.id) {
           editorRef.current.innerHTML = noteToEdit.contentHTML;
           editorRef.current.dataset.currentNoteId = noteToEdit.id;
         } else if (!editorRef.current.innerHTML && noteToEdit.contentHTML) {
-           // If editor is empty but we have content for current note (e.g. after HMR)
            editorRef.current.innerHTML = noteToEdit.contentHTML;
         }
       }
@@ -94,29 +93,17 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       }
     };
 
-    const handleInternalLinkClick = (e: MouseEvent) => {
-        let target = e.target as HTMLElement | null;
-        while (target && target !== editor) {
-            if (target.tagName === 'A' && target.hasAttribute('data-note-link-id')) {
-                e.preventDefault();
-                const href = target.getAttribute('href');
-                if (href) {
-                    navigate(href.startsWith('#') ? href.substring(1) : href);
-                }
-                return;
-            }
-            target = target.parentElement;
-        }
-    };
+    // Removed handleInternalLinkClick function and its event listener
+    // const handleInternalLinkClick = (e: MouseEvent) => { ... };
 
     editor.addEventListener('click', handleChecklistClick);
-    editor.addEventListener('click', handleInternalLinkClick);
+    // editor.removeEventListener('click', handleInternalLinkClick); // Removed
 
     return () => {
         editor.removeEventListener('click', handleChecklistClick);
-        editor.removeEventListener('click', handleInternalLinkClick);
+        // editor.removeEventListener('click', handleInternalLinkClick); // Removed
     };
-  }, [navigate]); // Add navigate to dependency array for handleInternalLinkClick
+  }, [navigate]); // navigate dependency might be removable if no other internal navigation logic is in this useEffect
 
 
   const updateContentHTMLFromDOM = () => {
@@ -126,20 +113,32 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   };
 
   const handleSave = () => {
-    if (!noteToEdit) return; 
+    if (!noteToEdit && !title && !(editorRef.current?.innerHTML)) {
+        onClose(); 
+        return;
+    }
 
     const now = new Date().toISOString();
+    const baseNoteData = noteToEdit || { 
+        id: `temp-new-note-${crypto.randomUUID()}`, 
+        title: '',
+        contentHTML: '',
+        createdAt: now,
+        notebookId: null,
+        tags: [],
+        isPinned: false,
+    };
     
     const noteData: Note = {
-      ...noteToEdit, 
+      ...baseNoteData, 
       title: title.trim() || 'Unavngiven Note',
-      contentHTML: editorRef.current?.innerHTML || '', // Get latest from DOM
+      contentHTML: editorRef.current?.innerHTML || '', 
       updatedAt: now, 
       notebookId: selectedNotebookId,
       tags: tagsString.split(',').map(tag => tag.trim()).filter(tag => tag),
       isPinned: noteToEdit?.isPinned || false,
       reminder: reminder || undefined,
-      createdAt: noteToEdit.id.startsWith('temp-new-note-') ? now : noteToEdit.createdAt,
+      createdAt: baseNoteData.id.startsWith('temp-new-note-') ? now : baseNoteData.createdAt,
     };
     onSave(noteData);
   };
@@ -193,39 +192,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     updateContentHTMLFromDOM();
   };
 
-  const handleOpenLinkModal = () => {
-    const selection = window.getSelection();
-    if (selection && selection.rangeCount > 0) {
-      setSelectedRange(selection.getRangeAt(0).cloneRange());
-    } else {
-      setSelectedRange(null);
-    }
-    setIsLinkModalOpen(true);
-  };
-
-  const handleInsertLink = (linkedNoteId: string, linkedNoteTitle: string) => {
-    const currentSelection = window.getSelection();
-    if (selectedRange && currentSelection) { // Restore selection before inserting
-      currentSelection.removeAllRanges();
-      currentSelection.addRange(selectedRange); 
-    }
-
-    const linkText = selectedRange && !selectedRange.collapsed ? selectedRange.toString() : linkedNoteTitle;
-    const linkHref = `#/note/${linkedNoteId}/edit`; // Path for react-router
-    const linkHTML = `<a href="${linkHref}" data-note-link-id="${linkedNoteId}" title="Link til: ${linkedNoteTitle}" class="text-blue-600 dark:text-blue-400 hover:underline">${linkText}</a>`;
-    
-    document.execCommand('insertHTML', false, linkHTML);
-    updateContentHTMLFromDOM();
-    
-    setIsLinkModalOpen(false);
-    setLinkSearchTerm('');
-    setSelectedRange(null);
-  };
-
-  const filteredNotesForLinking = allNotes.filter(note => 
-    note.id !== noteToEdit?.id &&
-    note.title.toLowerCase().includes(linkSearchTerm.toLowerCase())
-  );
+  // Removed handleOpenLinkModal, handleInsertLink, and filteredNotesForLinking
 
   const handleSetReminder = () => {
     if (reminder) {
@@ -243,8 +210,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   
   const handleSaveReminder = () => {
     if (reminderDate && reminderTime) {
-        const isoString = `${reminderDate}T${reminderTime}:00`; 
-        setReminder(isoString);
+        const localDateTime = new Date(`${reminderDate}T${reminderTime}`);
+        setReminder(localDateTime.toISOString());
     } else {
         setReminder(''); 
     }
@@ -282,43 +249,43 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     let combinedHTML = '';
     let match;
 
+    const sanitizeText = (plainText: string) => {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerText = plainText;
+        return tempDiv.innerHTML;
+    }
+    
     while ((match = urlRegex.exec(text)) !== null) {
       const plainTextBefore = text.substring(lastIndex, match.index);
       if (plainTextBefore) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerText = plainTextBefore;
-        combinedHTML += tempDiv.innerHTML;
+        combinedHTML += sanitizeText(plainTextBefore);
       }
       
       const url = match[0];
       let displayHost;
       try {
         displayHost = new URL(url).hostname.replace(/^www\./, '');
-      } catch (e) {
+      } catch (e) { 
         displayHost = url.length > 30 ? url.substring(0, 27) + '...' : url;
       }
-      combinedHTML += `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">${displayHost}</a>`;
+      combinedHTML += `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-400 hover:underline">${sanitizeText(displayHost)}</a>`;
       lastIndex = urlRegex.lastIndex;
     }
     
     const plainTextAfter = text.substring(lastIndex);
     if (plainTextAfter) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerText = plainTextAfter;
-        combinedHTML += tempDiv.innerHTML;
+        combinedHTML += sanitizeText(plainTextAfter);
     }
 
     if (combinedHTML) {
         if (!text.includes('\n')) { 
-            combinedHTML = `<p>${combinedHTML}</p>`;
+            combinedHTML = `<p>${combinedHTML}</p>`; 
         } else {
             combinedHTML = combinedHTML.replace(/\n/g, '<br>');
         }
       document.execCommand('insertHTML', false, combinedHTML);
-    } else {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerText = text;
-      document.execCommand('insertHTML', false, tempDiv.innerHTML.replace(/\n/g, '<br>'));
+    } else { 
+      document.execCommand('insertHTML', false, sanitizeText(text).replace(/\n/g, '<br>'));
     }
     updateContentHTMLFromDOM();
   };
@@ -415,43 +382,23 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 onInsertImage={handleInsertImage}
                 onInsertChecklist={handleInsertChecklist}
                 onSetReminder={handleSetReminder}
-                onLinkNote={handleOpenLinkModal}
+                // onLinkNote prop removed
             />
             <div
                 ref={editorRef}
                 contentEditable
                 onPaste={handlePaste}
-                onInput={updateContentHTMLFromDOM} // Update React state from DOM
+                onInput={updateContentHTMLFromDOM} 
                 className="p-4 flex-grow overflow-y-auto focus:outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 prose dark:prose-invert max-w-none"
                 style={{ minHeight: '200px', direction: 'ltr', unicodeBidi: 'isolate' } as React.CSSProperties}
-                // dangerouslySetInnerHTML removed - content set by useEffect
                 aria-label="Noteindhold editor"
-                data-current-note-id={noteToEdit?.id} // Helper for useEffect logic
+                data-current-note-id={noteToEdit?.id} 
             />
         </div>
       </div>
       <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" style={{ display: 'none' }} aria-hidden="true" />
 
-      <Modal isOpen={isLinkModalOpen} onClose={() => setIsLinkModalOpen(false)} title="Link til Note">
-        <input
-          type="text"
-          placeholder="Søg noter..."
-          value={linkSearchTerm}
-          onChange={(e) => setLinkSearchTerm(e.target.value)}
-          className="w-full p-2 mb-3 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-          aria-label="Søg noter at linke til"
-        />
-        <ul className="max-h-60 overflow-y-auto">
-          {filteredNotesForLinking.length > 0 ? filteredNotesForLinking.map(note => (
-            <li key={note.id} 
-                onClick={() => handleInsertLink(note.id, note.title)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer text-gray-800 dark:text-gray-200"
-            >
-              {note.title}
-            </li>
-          )) : <p className="text-gray-500 dark:text-gray-400">Ingen noter fundet.</p>}
-        </ul>
-      </Modal>
+      {/* Removed Link to Note Modal */}
 
       <Modal isOpen={isReminderModalOpen} onClose={() => setIsReminderModalOpen(false)} title="Sæt Påmindelse">
         <div className="space-y-4">
@@ -478,14 +425,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             <div className="flex justify-end gap-2 pt-2">
                 <button 
                     type="button"
-                    onClick={() => { setReminder(''); setReminderDate(''); setReminderTime(''); setIsReminderModalOpen(false); }}
+                    onClick={() => { setReminder(''); setReminderDate(''); setReminderTime(''); setIsReminderModalOpen(false); handleSave(); }} 
                     className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-md"
                 >
                     Ryd Påmindelse
                 </button>
                 <button 
                     type="button"
-                    onClick={handleSaveReminder}
+                    onClick={() => { handleSaveReminder(); handleSave(); }} 
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
                 >
                     Sæt Påmindelse

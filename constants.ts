@@ -7,7 +7,7 @@
 import React from 'react';
 import { AppSettings } from './types';
 
-export const APP_NAME = "StudyFlow";
+export const APP_NAME = "MyNotery";
 
 export const DEFAULT_NOTEBOOK_COLORS: string[] = [
   'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500', 'bg-lime-500',

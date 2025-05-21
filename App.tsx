@@ -30,7 +30,7 @@ const saveToLocalStorage = <T,>(key: string, value: T) => {
 
 const NotebookCard: React.FC<{ notebook: Notebook; noteCount: number; recentNotes: Note[]; onSelect: () => void; onDelete: (id: string) => void; onEdit: () => void; }> = ({ notebook, noteCount, recentNotes, onSelect, onDelete, onEdit }) => {
   return (
-    <div className={`p-4 rounded-xl shadow-lg hover:shadow-xl transition-shadow cursor-pointer relative ${notebook.color} text-white flex flex-col justify-between min-h-[180px]`} onClick={onSelect}>
+    <div className={`p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow cursor-pointer relative ${notebook.color} text-white flex flex-col justify-between min-h-[180px]`} onClick={onSelect}>
       <div>
         <h3 className="text-xl font-semibold mb-1 truncate">{notebook.name}</h3>
         <p className="text-sm opacity-80 mb-2">{noteCount} note{noteCount !== 1 ? 's' : ''}</p>
@@ -46,16 +46,16 @@ const NotebookCard: React.FC<{ notebook: Notebook; noteCount: number; recentNote
         )}
       </div>
       <div className="absolute top-3 right-3 flex gap-1.5">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onEdit(); }} 
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
           className="p-1.5 bg-black/25 hover:bg-black/40 rounded-full transition-colors"
           title="Rediger notesbog"
           aria-label="Rediger notesbog"
         >
           {ICON_EDIT('w-4 h-4 text-white')}
         </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDelete(notebook.id); }} 
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(notebook.id); }}
           className="p-1.5 bg-black/25 hover:bg-black/40 rounded-full transition-colors"
           title="Slet notesbog"
           aria-label="Slet notesbog"
@@ -72,7 +72,7 @@ const NoteCard: React.FC<{ note: Note; notebookName?: string; notebookColor?: st
   const noteDate = new Date(note.updatedAt);
 
   return (
-    <div className={`bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg hover:shadow-xl transition-shadow flex flex-col ${settings.fontSize}`}>
+    <div className={`bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col ${settings.fontSize} border border-gray-200 dark:border-transparent`}>
       <div className="flex justify-between items-start mb-2">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 truncate" onClick={onSelect} title={note.title}>
           {note.title}
@@ -119,22 +119,22 @@ const NoteCard: React.FC<{ note: Note; notebookName?: string; notebookColor?: st
 };
 
 const MainApp: React.FC = () => {
-  const [notebooks, setNotebooks] = useState<Notebook[]>(() => loadFromLocalStorage('studyflow-notebooks', []));
-  const [notes, setNotes] = useState<Note[]>(() => loadFromLocalStorage('studyflow-notes', []));
-  const [settings, setSettings] = useState<AppSettings>(() => loadFromLocalStorage('studyflow-settings', DEFAULT_SETTINGS));
+  const [notebooks, setNotebooks] = useState<Notebook[]>(() => loadFromLocalStorage('mynotery-notebooks', []));
+  const [notes, setNotes] = useState<Note[]>(() => loadFromLocalStorage('mynotery-notes', []));
+  const [settings, setSettings] = useState<AppSettings>(() => loadFromLocalStorage('mynotery-settings', DEFAULT_SETTINGS));
 
   const [isNotebookModalOpen, setIsNotebookModalOpen] = useState(false);
   const [newNotebookName, setNewNotebookName] = useState('');
   const [selectedNotebookColor, setSelectedNotebookColor] = useState(DEFAULT_NOTEBOOK_COLORS[0]);
-  
+
   const [editingNotebook, setEditingNotebook] = useState<Notebook | null>(null);
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
   const [currentNoteToEdit, setCurrentNoteToEdit] = useState<Note | null>(null);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -151,40 +151,46 @@ const MainApp: React.FC = () => {
     if (location.pathname.startsWith('/notebook/') && notebookIdFromPath) return 'notebook-notes';
     if (location.pathname === '/') return 'notebooks';
     if (location.pathname.startsWith('/note/')) {
-        if (currentNoteToEdit?.notebookId) {
-             const notebookExists = notebooks.some(nb => nb.id === currentNoteToEdit.notebookId);
-             if (notebookExists) return 'notebook-notes'; 
+        const noteIdBeingEdited = location.pathname.match(/^\/note\/([a-zA-Z0-9-]+)\/edit$/)?.[1];
+        const note = noteIdBeingEdited ? notes.find(n => n.id === noteIdBeingEdited) : currentNoteToEdit;
+
+        if (note?.notebookId && notebooks.some(nb => nb.id === note.notebookId)) {
+             return 'notebook-notes'; 
         }
-        return 'editor-open';
+        return 'editor-open'; 
     }
-    return 'notebooks'; 
-  }, [location.pathname, currentNoteToEdit, notebooks, getNotebookIdFromPath]);
+    return 'notebooks';
+  }, [location.pathname, currentNoteToEdit, notes, notebooks, getNotebookIdFromPath]);
 
 
   useEffect(() => {
-    saveToLocalStorage('studyflow-notebooks', notebooks);
+    saveToLocalStorage('mynotery-notebooks', notebooks);
+    console.log('[APP_EFFECT] Notebooks saved to localStorage:', notebooks);
   }, [notebooks]);
 
   useEffect(() => {
-    saveToLocalStorage('studyflow-notes', notes);
+    saveToLocalStorage('mynotery-notes', notes);
+     console.log('[APP_EFFECT] Notes saved to localStorage:', notes);
   }, [notes]);
 
   useEffect(() => {
-    saveToLocalStorage('studyflow-settings', settings);
+    saveToLocalStorage('mynotery-settings', settings);
     document.documentElement.className = settings.theme;
   }, [settings]);
 
   // Route-driven NoteEditor visibility
 useEffect(() => {
+  console.log('[EDITOR_EFFECT] Path changed:', location.pathname, 'State:', location.state);
   const newNoteMatch = location.pathname === '/note/new';
   const editNoteMatch = location.pathname.match(/^\/note\/([a-zA-Z0-9-]+)\/edit$/);
 
   if (newNoteMatch) {
+    console.log('[EDITOR_EFFECT] New note route matched.');
     const isAlreadyEditingNew = currentNoteToEdit && currentNoteToEdit.id.startsWith('temp-new-note-');
 
     if (!isNoteEditorOpen || !isAlreadyEditingNew) {
       const tempId = `temp-new-note-${crypto.randomUUID()}`;
-      setCurrentNoteToEdit({
+      const newNoteData: Note = {
         id: tempId,
         title: '',
         contentHTML: '',
@@ -193,24 +199,40 @@ useEffect(() => {
         notebookId: location.state?.notebookId || getNotebookIdFromPath() || null,
         tags: [],
         isPinned: false,
-      });
+      };
+      console.log('[EDITOR_EFFECT] Creating new temp note:', newNoteData);
+      setCurrentNoteToEdit(newNoteData);
       setIsNoteEditorOpen(true);
+    } else {
+      console.log('[EDITOR_EFFECT] New note route, but editor already open for new note or state matches.');
     }
   } else if (editNoteMatch) {
     const noteId = editNoteMatch[1];
+    console.log('[EDITOR_EFFECT] Edit note route matched. Note ID:', noteId);
     const note = notes.find(n => n.id === noteId);
     if (note) {
+      console.log('[EDITOR_EFFECT] Found note to edit:', note.id);
       if (!isNoteEditorOpen || currentNoteToEdit?.id !== noteId) {
         setCurrentNoteToEdit(note);
         setIsNoteEditorOpen(true);
+        console.log('[EDITOR_EFFECT] Opened editor for note:', note.id);
+      } else {
+        console.log('[EDITOR_EFFECT] Edit note route, but editor already open for this note or state matches.');
       }
     } else { 
+      console.warn('[EDITOR_EFFECT] Note not found for ID:', noteId, '. Notes array:', notes);
       setIsNoteEditorOpen(false);
       setCurrentNoteToEdit(null);
-      navigate(getNotebookIdFromPath() ? `/notebook/${getNotebookIdFromPath()}` : '/all-notes', { replace: true });
+      const targetNotebookPath = getNotebookIdFromPath();
+      if(location.pathname.startsWith('/note/')) {
+           console.log('[EDITOR_EFFECT] Note not found, navigating away from editor to:', targetNotebookPath ? `/notebook/${targetNotebookPath}` : '/all-notes');
+           navigate(targetNotebookPath ? `/notebook/${targetNotebookPath}` : '/all-notes', { replace: true });
+      }
     }
-  } else {
-    if (isNoteEditorOpen) {
+  } else { 
+    console.log('[EDITOR_EFFECT] Not a note editor route. Current path:', location.pathname);
+    if (isNoteEditorOpen) { 
+        console.log('[EDITOR_EFFECT] Closing editor.');
         setIsNoteEditorOpen(false);
         setCurrentNoteToEdit(null);
     }
@@ -247,78 +269,134 @@ useEffect(() => {
     setSelectedNotebookColor(DEFAULT_NOTEBOOK_COLORS[0]);
     setEditingNotebook(null);
   };
-  
-  const handleDeleteNotebook = (notebookId: string) => {
+
+  const handleDeleteNotebook = useCallback((notebookId: string) => {
+    console.log('[DELETE_NOTEBOOK_HANDLER] Initiated for ID:', notebookId);
     if (window.confirm("Er du sikker på, at du vil slette denne notesbog og alle dens noter? Handlingen kan ikke fortrydes.")) {
-      setNotebooks(prev => prev.filter(nb => nb.id !== notebookId));
-      setNotes(prev => prev.filter(note => note.notebookId !== notebookId));
-      if (getNotebookIdFromPath() === notebookId) { 
+      console.log('[DELETE_NOTEBOOK_HANDLER] User confirmed deletion for ID:', notebookId);
+      
+      // Update notes state first
+      setNotes(prevNotes => {
+        console.log('[DELETE_NOTEBOOK_HANDLER] Current notes count:', prevNotes.length);
+        const notesInOtherNotebooks = prevNotes.filter(note => note.notebookId !== notebookId);
+        console.log('[DELETE_NOTEBOOK_HANDLER] Notes count after filtering notebookId', notebookId, ':', notesInOtherNotebooks.length);
+        return notesInOtherNotebooks;
+      });
+
+      // Then update notebooks state
+      setNotebooks(prevNotebooks => {
+        console.log('[DELETE_NOTEBOOK_HANDLER] Current notebooks count:', prevNotebooks.length);
+        const remainingNotebooks = prevNotebooks.filter(nb => nb.id !== notebookId);
+        console.log('[DELETE_NOTEBOOK_HANDLER] Notebooks count after filtering ID', notebookId, ':', remainingNotebooks.length);
+        return remainingNotebooks;
+      });
+      
+      const currentNotebookIdInPath = getNotebookIdFromPath();
+      console.log('[DELETE_NOTEBOOK_HANDLER] Current notebook ID in path:', currentNotebookIdInPath);
+      if (currentNotebookIdInPath === notebookId) {
+        console.log('[DELETE_NOTEBOOK_HANDLER] Deleted notebook was currently viewed. Navigating to /');
         navigate('/'); 
+      } else {
+         console.log('[DELETE_NOTEBOOK_HANDLER] Deleted notebook was not the one currently viewed or not in notebook view.');
       }
+      // The editor's route-driven useEffect will handle closing if a note from the deleted notebook was open.
+    } else {
+      console.log('[DELETE_NOTEBOOK_HANDLER] User cancelled deletion for ID:', notebookId);
     }
-  };
+  }, [navigate, getNotebookIdFromPath]); // Removed notes & notebooks: setNotes/setNotebooks functional updates don't need them in deps.
+
 
 const handleSaveNote = (noteToSave: Note) => {
-  let finalNote = { ...noteToSave, updatedAt: new Date().toISOString() }; 
-  let isNewNoteInstance = !notes.some(n => n.id === finalNote.id);
+  const now = new Date().toISOString();
+  let finalNote: Note;
 
-  if (finalNote.id.startsWith('temp-new-note-') || isNewNoteInstance) {
-    finalNote.id = crypto.randomUUID();
-    finalNote.createdAt = finalNote.createdAt || new Date().toISOString(); 
-    // If new note and notebookId came from location.state (e.g. new note in specific notebook)
+  if (noteToSave.id.startsWith('temp-new-note-')) {
+    finalNote = {
+      ...noteToSave,
+      id: crypto.randomUUID(), 
+      createdAt: now, 
+      updatedAt: now,
+    };
+    
+    const notebookIdFromPath = getNotebookIdFromPath(); // Get current notebook from path
     if (location.state?.notebookId && !finalNote.notebookId) {
         finalNote.notebookId = location.state.notebookId;
-    } else if (getNotebookIdFromPath() && !finalNote.notebookId) { // Or from current notebook view
-        finalNote.notebookId = getNotebookIdFromPath();
+    } else if (notebookIdFromPath && !finalNote.notebookId) { // Prioritize path if state not specific
+        finalNote.notebookId = notebookIdFromPath;
     }
+    console.log('[SAVE_NOTE] New note, finalized ID:', finalNote.id, 'Assigned Notebook ID:', finalNote.notebookId);
+
+  } else {
+    finalNote = {
+      ...noteToSave,
+      updatedAt: now,
+    };
+    console.log('[SAVE_NOTE] Updating existing note:', finalNote.id);
   }
-
-
-  setNotes(prev => {
-    const index = prev.findIndex(n => n.id === finalNote.id);
-    if (index > -1) { 
-      const updatedNotes = [...prev];
-      updatedNotes[index] = finalNote;
-      return updatedNotes;
-    }
-    const tempIndex = prev.findIndex(n => n.id === noteToSave.id && noteToSave.id.startsWith('temp-new-note-'));
-    if (tempIndex > -1) {
-        const updatedNotes = [...prev];
-        updatedNotes[tempIndex] = finalNote; 
-        return updatedNotes;
-    }
-    return [...prev, finalNote]; 
-  });
   
+
+  setNotes(prevNotes => {
+    const existingNoteIndex = prevNotes.findIndex(n => n.id === finalNote.id);
+    if (existingNoteIndex > -1) {
+        console.log('[SAVE_NOTE] Found existing note at index', existingNoteIndex, '- updating.');
+        const updatedNotes = [...prevNotes];
+        updatedNotes[existingNoteIndex] = finalNote;
+        return updatedNotes;
+    } else {
+        console.log('[SAVE_NOTE] Adding new note to array.');
+        return [...prevNotes.filter(n => n.id !== noteToSave.id), finalNote]; 
+    }
+  });
+
+  // Navigation is handled by the editor's onClose or route-driven effect
   if (finalNote.notebookId && notebooks.some(nb => nb.id === finalNote.notebookId)) {
+      console.log('[SAVE_NOTE] Note saved, navigating to notebook view:', finalNote.notebookId);
       navigate(`/notebook/${finalNote.notebookId}`);
   } else {
+      console.log('[SAVE_NOTE] Note saved, navigating to all-notes view.');
       navigate('/all-notes');
   }
 };
 
 
-  const handleDeleteNote = (noteId: string) => {
-     if (window.confirm("Er du sikker på, at du vil slette denne note? Handlingen kan ikke fortrydes.")) {
-        const noteBeingDeleted = notes.find(n => n.id === noteId);
-        setNotes(prevNotes => prevNotes.filter(n => n.id !== noteId));
-        
-        if (location.pathname === `/note/${noteId}/edit`) {
-            if(noteBeingDeleted?.notebookId && notebooks.some(nb => nb.id === noteBeingDeleted.notebookId)) {
-                navigate(`/notebook/${noteBeingDeleted.notebookId}`, { replace: true });
-            } else {
-                navigate('/all-notes', { replace: true });
-            }
-        }
-     }
-  };
-  
+const handleDeleteNote = useCallback((noteId: string) => {
+   console.log('[DELETE_NOTE_HANDLER] Initiated for ID:', noteId);
+   if (window.confirm("Er du sikker på, at du vil slette denne note? Handlingen kan ikke fortrydes.")) {
+      console.log('[DELETE_NOTE_HANDLER] User confirmed deletion for ID:', noteId);
+      
+      setNotes(prevNotes => {
+          console.log('[DELETE_NOTE_HANDLER] Current notes count:', prevNotes.length);
+          const remainingNotes = prevNotes.filter(n => n.id !== noteId);
+          console.log('[DELETE_NOTE_HANDLER] Notes count after filtering ID', noteId, ':', remainingNotes.length);
+          return remainingNotes;
+      });
+      
+      console.log('[DELETE_NOTE_HANDLER] Note state updated for ID:', noteId);
+      // If the editor was open for this specific note, the route-driven useEffect for the editor
+      // will detect that the note is gone from the `notes` state and automatically navigate away.
+      if (location.pathname === `/note/${noteId}/edit`) {
+         console.log("[DELETE_NOTE_HANDLER] Deleted note was open in editor. Main editor useEffect should handle navigation.");
+      } else {
+         console.log("[DELETE_NOTE_HANDLER] Deleted note from a list view. UI should update.");
+      }
+   } else {
+     console.log('[DELETE_NOTE_HANDLER] User cancelled deletion for ID:', noteId);
+   }
+  }, [location.pathname]); // Removed navigate & notes: setNotes functional updates don't need them in deps.
+
   const handleTogglePinNote = (noteId: string) => {
     setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isPinned: !n.isPinned } : n));
   };
 
   const handleNavigateToNewNote = (notebookIdForNewNote?: string | null) => {
-    navigate('/note/new', { state: { notebookId: notebookIdForNewNote || getNotebookIdFromPath() } });
+    const currentNotebookIdInPath = getNotebookIdFromPath();
+    let targetNotebookId = notebookIdForNewNote;
+    
+    if (currentActiveViewForNav === 'notebook-notes' && currentNotebookIdInPath && notebookIdForNewNote === undefined) {
+        targetNotebookId = currentNotebookIdInPath;
+    }
+    console.log('[NAV_NEW_NOTE] Navigating to /note/new. Target notebookId for state:', targetNotebookId);
+    navigate('/note/new', { state: { notebookId: targetNotebookId } });
   };
 
   const allTags = useMemo(() => {
@@ -334,7 +412,7 @@ const handleSaveNote = (noteToSave: Note) => {
     if (currentActiveViewForNav === 'notebook-notes' && notebookIdFromUrl) {
         RfilteredNotes = RfilteredNotes.filter(note => note.notebookId === notebookIdFromUrl);
     }
-    
+
     if (activeTag && currentActiveViewForNav !== 'tags') { 
       RfilteredNotes = RfilteredNotes.filter(note => note.tags.includes(activeTag));
     }
@@ -346,21 +424,28 @@ const handleSaveNote = (noteToSave: Note) => {
         note.contentHTML.toLowerCase().replace(/<[^>]+>/g, '').includes(lowerSearchTerm)
       );
     }
-    
+
     return RfilteredNotes.sort((a, b) => {
       if (a.isPinned !== b.isPinned) {
         return a.isPinned ? -1 : 1;
       }
-      const valA = a[settings.allNotesSortBy];
-      const valB = b[settings.allNotesSortBy];
-      
+      const sortBy = settings.allNotesSortBy;
+      const valA = a[sortBy];
+      const valB = b[sortBy];
+
       let comparison = 0;
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        comparison = valA.localeCompare(valB);
-      } else if (typeof valA === 'number' && typeof valB === 'number') {
-        comparison = valA - valB;
+      if (sortBy === 'title') {
+        comparison = (valA as string).localeCompare(valB as string);
+      } else { 
+        // Ensure createdAt and updatedAt are treated as dates for comparison
+        const dateA = new Date(valA as string).getTime();
+        const dateB = new Date(valB as string).getTime();
+        if (isNaN(dateA) || isNaN(dateB)) { // Handle potential invalid date strings
+            comparison = 0;
+        } else {
+            comparison = dateA - dateB;
+        }
       }
-      
       return settings.allNotesSortOrder === 'asc' ? comparison : -comparison;
     });
   }, [notes, searchTerm, activeTag, settings.allNotesSortBy, settings.allNotesSortOrder, currentActiveViewForNav, getNotebookIdFromPath]);
@@ -375,7 +460,7 @@ const handleSaveNote = (noteToSave: Note) => {
         if (!notebook) return;
         const notesInNotebook = notes.filter(note => note.notebookId === notebookId);
         dataToExport = { notebooks: [notebook], notes: notesInNotebook };
-        filename = `${notebook.name}_export_${new Date().toISOString().split('T')[0]}.json`;
+        filename = `${notebook.name.replace(/\s+/g, '_')}_export_${new Date().toISOString().split('T')[0]}.json`;
     } else {
         dataToExport = { notebooks, notes, settings };
     }
@@ -394,46 +479,105 @@ const handleSaveNote = (noteToSave: Note) => {
 
   const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    console.log('[IMPORT] File input change event triggered.');
     if (file) {
+        console.log('[IMPORT] File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
         const reader = new FileReader();
         reader.onload = (e) => {
+            console.log('[IMPORT] FileReader onload triggered.');
             try {
-                const imported = JSON.parse(e.target?.result as string) as ExportData;
+                const fileContent = e.target?.result as string;
+                if (!fileContent) {
+                    console.error("[IMPORT] File content is empty or unreadable.");
+                    alert("Fejl: Filindholdet er tomt eller ulæseligt.");
+                    return;
+                }
+                console.log('[IMPORT] File content (first 500 chars):', fileContent.substring(0,500));
+                const imported = JSON.parse(fileContent) as ExportData;
+                console.log('[IMPORT] Successfully parsed JSON data:', imported);
+
                 if (imported.notebooks && imported.notes) {
                     if (window.confirm("Import af data vil flette med eksisterende notesbøger og noter. Er du sikker? (Eksisterende elementer med samme ID kan blive overskrevet.)")) {
-                        
-                        const updatedNotebooks = [...notebooks];
-                        const now = new Date().toISOString();
-                        imported.notebooks.forEach(inb => {
-                            const existingIdx = updatedNotebooks.findIndex(nb => nb.id === inb.id);
-                            if (existingIdx > -1) updatedNotebooks[existingIdx] = {...updatedNotebooks[existingIdx], ...inb, updatedAt: inb.updatedAt || now}; 
-                            else updatedNotebooks.push({...inb, updatedAt: inb.updatedAt || now, createdAt: inb.createdAt || now});
-                        });
-                        setNotebooks(updatedNotebooks);
+                        console.log('[IMPORT] User confirmed data merge.');
 
-                        const updatedNotes = [...notes];
-                        imported.notes.forEach(inote => {
-                            const existingIdx = updatedNotes.findIndex(n => n.id === inote.id);
-                             if (existingIdx > -1) updatedNotes[existingIdx] = {...updatedNotes[existingIdx], ...inote, updatedAt: inote.updatedAt || now}; 
-                            else updatedNotes.push({...inote, updatedAt: inote.updatedAt || now, createdAt: inote.createdAt || now });
+                        const now = new Date().toISOString();
+                        
+                        // Process Notebooks
+                        let tempNotebooks = [...notebooks];
+                        (imported.notebooks || []).forEach(inb => {
+                            const existingIdx = tempNotebooks.findIndex(nb => nb.id === inb.id);
+                            const newOrUpdatedNotebook: Notebook = {
+                                ...inb,
+                                id: inb.id || crypto.randomUUID(),
+                                name: inb.name || "Importeret Notesbog",
+                                color: DEFAULT_NOTEBOOK_COLORS.includes(inb.color) ? inb.color : DEFAULT_NOTEBOOK_COLORS[0],
+                                createdAt: inb.createdAt || now,
+                                updatedAt: inb.updatedAt || now,
+                            };
+                            if (existingIdx > -1) {
+                                console.log('[IMPORT] Updating existing notebook ID:', inb.id);
+                                tempNotebooks[existingIdx] = newOrUpdatedNotebook;
+                            } else {
+                                console.log('[IMPORT] Adding new notebook:', newOrUpdatedNotebook.name);
+                                tempNotebooks.push(newOrUpdatedNotebook);
+                            }
                         });
-                        setNotes(updatedNotes);
+                        console.log('[IMPORT] Notebooks after merge attempt:', tempNotebooks.length);
+                        setNotebooks(tempNotebooks);
+
+                        // Process Notes
+                        let tempNotes = [...notes];
+                        (imported.notes || []).forEach(inote => {
+                            const existingIdx = tempNotes.findIndex(n => n.id === inote.id);
+                             const newOrUpdatedNote: Note = {
+                                ...inote,
+                                id: inote.id || crypto.randomUUID(),
+                                title: inote.title || "Importeret Note",
+                                contentHTML: inote.contentHTML || "<p></p>",
+                                notebookId: tempNotebooks.some(nb => nb.id === inote.notebookId) ? inote.notebookId : null, // Ensure notebookId is valid
+                                tags: Array.isArray(inote.tags) ? inote.tags : [],
+                                isPinned: typeof inote.isPinned === 'boolean' ? inote.isPinned : false,
+                                createdAt: inote.createdAt || now,
+                                updatedAt: inote.updatedAt || now,
+                             };
+                            if (existingIdx > -1) {
+                                console.log('[IMPORT] Updating existing note ID:', inote.id);
+                                tempNotes[existingIdx] = newOrUpdatedNote;
+                            } else {
+                                console.log('[IMPORT] Adding new note:', newOrUpdatedNote.title);
+                                tempNotes.push(newOrUpdatedNote);
+                            }
+                        });
+                        console.log('[IMPORT] Notes after merge attempt:', tempNotes.length);
+                        setNotes(tempNotes);
 
                         if (imported.settings) {
+                            console.log('[IMPORT] Updating settings.');
                             setSettings(prevSettings => ({ ...prevSettings, ...imported.settings }));
                         }
                         alert("Data importeret succesfuldt!");
+                        console.log('[IMPORT] Data import process completed successfully.');
+                    } else {
+                        console.log('[IMPORT] User cancelled data merge.');
                     }
                 } else {
                     alert("Ugyldigt importfilformat. Mangler 'notebooks' eller 'notes' array.");
+                    console.error("[IMPORT] Invalid file format - missing 'notebooks' or 'notes' properties. Data:", imported);
                 }
             } catch (err) {
-                console.error("Import error:", err);
-                alert("Fejl ved import af data. Filen kan være korrupt eller ikke gyldig JSON.");
+                console.error("[IMPORT] Error parsing JSON or processing data:", err);
+                alert("Fejl ved import af data. Filen kan være korrupt, ikke gyldig JSON, eller der opstod en fejl under behandlingen.");
             }
         };
+        reader.onerror = (err) => {
+            console.error('[IMPORT] FileReader error:', err);
+            alert("Fejl under læsning af fil.");
+        };
         reader.readAsText(file);
+        // Reset file input value to allow importing the same file again if needed
         event.target.value = ''; 
+    } else {
+        console.log('[IMPORT] No file selected or event.target.files is null.');
     }
   };
 
@@ -449,26 +593,30 @@ const handleSaveNote = (noteToSave: Note) => {
         <head>
           <title>Udskrift: ${notebook.name}</title>
           <style>
-            body { font-family: sans-serif; margin: 20px; line-height: 1.6; }
-            .note-item { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; page-break-inside: avoid; }
-            .note-item h2 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; font-size: 1.5em; }
+            body { font-family: Inter, sans-serif; margin: 20px; line-height: 1.6; color: #333; }
+            .note-item { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; page-break-inside: avoid; background-color: #fff; }
+            .note-item h2 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; font-size: 1.5em; color: #111; }
             .note-item img { max-width: 100%; height: auto; border-radius: 4px; margin: 10px 0; }
             .note-item ul[data-type="checklist"] { list-style: none; padding-left: 0; }
             .note-item ul[data-type="checklist"] li { margin-bottom: 5px; }
-            .note-item ul[data-type="checklist"] li::before { content: '☐ '; /* unchecked box */ }
-            .note-item ul[data-type="checklist"] li[data-checked="true"]::before { content: '☑ '; /* checked box */ }
+            .note-item ul[data-type="checklist"] li::before { content: '☐ '; font-family: monospace; }
+            .note-item ul[data-type="checklist"] li[data-checked="true"]::before { content: '☑ '; font-family: monospace; }
             .note-item ul[data-type="checklist"] li[data-checked="true"] { text-decoration: line-through; opacity: 0.7; }
+            .note-item a { color: #007bff; text-decoration: underline; }
             hr { border: 0; border-top: 1px dashed #ccc; margin: 20px 0; }
+            h1 {color: #000;}
             @media print {
-              body { margin: 0.5in; }
-              .note-item { border: 1px solid #ddd; }
-              button { display: none; }
+              body { margin: 0.5in; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+              .note-item { border: 1px solid #ddd !important; background-color: #fff !important; }
+              .print-button { display: none !important; }
+              h1, h2 {color: #000 !important;}
+              a {color: #007bff !important;}
             }
           </style>
         </head>
         <body>
           <h1>Notesbog: ${notebook.name}</h1>
-          <button onclick="window.print()" style="padding: 10px 15px; margin-bottom:20px; background-color: #007bff; color:white; border:none; border-radius:5px; cursor:pointer;">Udskriv</button>
+          <button class="print-button" onclick="window.print()" style="padding: 10px 15px; margin-bottom:20px; background-color: #007bff; color:white; border:none; border-radius:5px; cursor:pointer;">Udskriv</button>
           <hr />
     `;
 
@@ -487,14 +635,12 @@ const handleSaveNote = (noteToSave: Note) => {
     if (printWindow) {
       printWindow.document.write(printHtml);
       printWindow.document.close();
-      // printWindow.focus(); // Optional: focus the new window
-      // printWindow.print(); // Optional: auto-trigger print dialog, might be blocked
     }
   };
-  
+
   const renderCurrentView = () => {
     const notebookIdFromPath = getNotebookIdFromPath();
-    const currentViewBasedOnPath = currentActiveViewForNav; 
+    const currentViewBasedOnPath = currentActiveViewForNav;
 
     if (currentViewBasedOnPath === 'notebooks') {
       return (
@@ -509,12 +655,12 @@ const handleSaveNote = (noteToSave: Note) => {
               {notebooks.map(nb => {
                 const notesInNotebook = notes.filter(note => note.notebookId === nb.id);
                 return (
-                  <NotebookCard 
-                    key={nb.id} 
-                    notebook={nb} 
+                  <NotebookCard
+                    key={nb.id}
+                    notebook={nb}
                     noteCount={notesInNotebook.length}
                     recentNotes={notesInNotebook.sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())}
-                    onSelect={() => navigate(`/notebook/${nb.id}`)} 
+                    onSelect={() => navigate(`/notebook/${nb.id}`)}
                     onDelete={handleDeleteNotebook}
                     onEdit={() => handleOpenNotebookModal(nb)}
                   />
@@ -525,7 +671,7 @@ const handleSaveNote = (noteToSave: Note) => {
         </>
       );
     }
-    
+
     if (currentViewBasedOnPath === 'all-notes' || currentViewBasedOnPath === 'notebook-notes') {
       const currentNotebook = notebookIdFromPath ? notebooks.find(nb => nb.id === notebookIdFromPath) : null;
       const viewTitle = currentNotebook ? currentNotebook.name : "Alle Noter";
@@ -536,7 +682,7 @@ const handleSaveNote = (noteToSave: Note) => {
             <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 truncate pr-4" title={viewTitle}>{viewTitle}</h1>
             <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="relative">
-                    <input 
+                    <input
                         type="text"
                         placeholder="Søg noter..."
                         value={searchTerm}
@@ -565,7 +711,7 @@ const handleSaveNote = (noteToSave: Note) => {
                     <option value="title-desc">Sortér: Titel (Å-A)</option>
                 </select>
                 {currentViewBasedOnPath === 'notebook-notes' && currentNotebook && (
-                    <button 
+                    <button
                         onClick={() => handlePrintNotebook(currentNotebook.id)}
                         className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1.5 transition-colors"
                         title="Udskriv Notesbog"
@@ -585,12 +731,12 @@ const handleSaveNote = (noteToSave: Note) => {
               {filteredAndSortedNotes.map(note => {
                 const notebook = note.notebookId ? notebooks.find(nb => nb.id === note.notebookId) : undefined;
                 return (
-                  <NoteCard 
-                    key={note.id} 
-                    note={note} 
+                  <NoteCard
+                    key={note.id}
+                    note={note}
                     notebookName={notebook?.name}
                     notebookColor={notebook?.color}
-                    onSelect={() => navigate(`/note/${note.id}/edit`)} 
+                    onSelect={() => navigate(`/note/${note.id}/edit`)}
                     onTogglePin={() => handleTogglePinNote(note.id)}
                     onDelete={handleDeleteNote}
                     settings={settings}
@@ -609,7 +755,7 @@ const handleSaveNote = (noteToSave: Note) => {
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Tags</h1>
                     {activeTag && (
-                        <button 
+                        <button
                             onClick={() => { setActiveTag(null); navigate('/all-notes'); }} 
                             className="px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-800 dark:hover:bg-red-700 dark:text-red-100 transition-colors flex items-center gap-1"
                         >
@@ -622,12 +768,12 @@ const handleSaveNote = (noteToSave: Note) => {
                 ) : (
                     <div className="flex flex-wrap gap-3">
                         {allTags.map(tag => (
-                            <button 
+                            <button
                                 key={tag.id}
                                 onClick={() => { setActiveTag(tag.name); navigate('/all-notes'); }} 
                                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors
                                     ${activeTag === tag.name 
-                                        ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
                                         : 'bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200'}`}
                             >
                                 {tag.name} ({notes.filter(n => n.tags.includes(tag.name)).length})
@@ -638,7 +784,7 @@ const handleSaveNote = (noteToSave: Note) => {
             </>
         );
     }
-    
+
     if (currentViewBasedOnPath === 'settings') {
         return (
             <>
@@ -699,7 +845,13 @@ const handleSaveNote = (noteToSave: Note) => {
                                 <select
                                     id="exportNotebook"
                                     value="" 
-                                    onChange={(e) => { if (e.target.value) { handleExportData(e.target.value); e.target.value = ""; } }}
+                                    onChange={(e) => { 
+                                        const selectedId = e.target.value;
+                                        if (selectedId) { 
+                                            handleExportData(selectedId); 
+                                            e.target.value = ""; 
+                                        } 
+                                    }}
                                     className="w-full max-w-xs p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                     aria-label="Vælg notesbog til eksport"
                                 >
@@ -727,12 +879,12 @@ const handleSaveNote = (noteToSave: Note) => {
       )}
 
       {!isNoteEditorOpen && (
-        <div className="fixed bottom-[calc(4rem+1.5rem)] right-6 sm:right-8 z-30 flex items-center">
-            <span id="new-note-fab-label" className="mr-3 px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-semibold rounded-md shadow-md whitespace-nowrap ring-1 ring-gray-300 dark:ring-gray-600">
+        <div className="fixed bottom-[calc(4rem+1.5rem)] right-6 sm:right-8 z-30 flex items-center group">
+            <span id="new-note-fab-label" className="mr-2 px-2.5 py-1 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-[11px] font-medium rounded-md shadow-sm whitespace-nowrap ring-1 ring-gray-300 dark:ring-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 Ny Note
             </span>
             <button
-                onClick={() => handleNavigateToNewNote(currentActiveViewForNav === 'notebook-notes' ? getNotebookIdFromPath() : null)}
+                onClick={() => handleNavigateToNewNote()}
                 className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
                 aria-labelledby="new-note-fab-label"
             >
@@ -740,10 +892,10 @@ const handleSaveNote = (noteToSave: Note) => {
             </button>
         </div>
       )}
-      
+
       {!isNoteEditorOpen && currentActiveViewForNav === 'notebooks' && (
-         <div className="fixed bottom-[calc(4rem+1.5rem+4.5rem)] right-6 sm:right-8 z-30 flex items-center"> 
-            <span id="new-notebook-fab-label" className="mr-3 px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-semibold rounded-md shadow-md whitespace-nowrap ring-1 ring-gray-300 dark:ring-gray-600">
+         <div className="fixed bottom-[calc(4rem+1.5rem+4.5rem)] right-6 sm:right-8 z-30 flex items-center group">
+            <span id="new-notebook-fab-label" className="mr-2 px-2.5 py-1 bg-white/80 dark:bg-gray-700/80 backdrop-blur-sm text-gray-700 dark:text-gray-200 text-[11px] font-medium rounded-md shadow-sm whitespace-nowrap ring-1 ring-gray-300 dark:ring-gray-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 Ny Notesbog
             </span>
             <button
@@ -766,19 +918,21 @@ const handleSaveNote = (noteToSave: Note) => {
                 { path: "/tags", icon: ICON_TAG, label: "Tags", view: 'tags' as ActiveView },
                 { path: "/settings", icon: ICON_COG, label: "Indstillinger", view: 'settings' as ActiveView },
               ].map(item => {
-                const isActiveNotebookView = currentActiveViewForNav === 'notebook-notes' && item.view === 'notebooks';
-                const isActive = currentActiveViewForNav === item.view || isActiveNotebookView;
+                const isActiveNotebookContext = currentActiveViewForNav === 'notebook-notes' && item.view === 'notebooks';
+                const isActive = currentActiveViewForNav === item.view || isActiveNotebookContext;
+                
                 return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={() => { if (!isActive) { setActiveTag(null); setSearchTerm('');} }}
-                  className={`flex flex-col items-center justify-center w-1/4 h-full transition-colors
+                  onClick={() => { if (currentActiveViewForNav !== item.view && item.view !== 'tags') { setActiveTag(null); } setSearchTerm(''); }}
+                  className={`relative flex flex-col items-center justify-center w-1/4 h-full transition-colors
                     ${isActive
-                      ? 'text-blue-600 dark:text-blue-400' 
+                      ? 'text-blue-600 dark:text-blue-400'
                       : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-300'}`}
                   aria-current={isActive ? 'page' : undefined}
                 >
+                  {isActive && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-blue-600 dark:bg-blue-400 rounded-full"></span>}
                   {item.icon(`w-6 h-6 ${settings.fontSize === 'text-sm' ? 'mb-0.5' : 'mb-1'}`)}
                   <span className={`text-xs ${settings.fontSize === 'text-sm' ? 'text-[10px]' : ''}`}>{item.label}</span>
                 </Link>
@@ -811,23 +965,28 @@ const handleSaveNote = (noteToSave: Note) => {
           </button>
         </div>
       </Modal>
-      
+
       {isNoteEditorOpen && currentNoteToEdit && (
         <NoteEditor
           noteToEdit={currentNoteToEdit}
           notebooks={notebooks}
-          allNotes={notes}
+          allNotes={notes} 
           onSave={handleSaveNote}
           onClose={() => { 
             const noteBeingClosed = currentNoteToEdit;
+            let targetPath = '/all-notes';
+            const notebookIdInPath = getNotebookIdFromPath();
+
             if (noteBeingClosed?.notebookId && notebooks.some(nb => nb.id === noteBeingClosed.notebookId)) {
-                navigate(`/notebook/${noteBeingClosed.notebookId}`);
-            } else if (location.pathname === '/note/new' && getNotebookIdFromPath()){
-                 navigate(`/notebook/${getNotebookIdFromPath()}`);
+                targetPath = `/notebook/${noteBeingClosed.notebookId}`;
+            } else if (location.pathname === '/note/new' && (location.state?.notebookId || notebookIdInPath)) {
+                 const potentialNotebookId = location.state?.notebookId || notebookIdInPath;
+                 if (potentialNotebookId && notebooks.some(nb => nb.id === potentialNotebookId)) {
+                    targetPath = `/notebook/${potentialNotebookId}`;
+                 }
             }
-            else {
-                navigate('/all-notes'); 
-            }
+            console.log('[EDITOR_ON_CLOSE] Navigating to:', targetPath);
+            navigate(targetPath);
           }}
           onDelete={currentNoteToEdit && !currentNoteToEdit.id.startsWith('temp-new-note-') && notes.some(n => n.id === currentNoteToEdit.id) ? handleDeleteNote : undefined}
           settings={settings}

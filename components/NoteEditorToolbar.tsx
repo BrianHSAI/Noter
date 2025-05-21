@@ -1,14 +1,15 @@
+
 import React from 'react';
 import { 
-  ICON_IMAGE, ICON_LIST_BULLET, ICON_CHECKLIST, ICON_LINK, ICON_CALENDAR 
-} from '../constants';
+  ICON_IMAGE, ICON_LIST_BULLET, ICON_CHECKLIST, ICON_CALENDAR 
+} from '../constants'; // ICON_LINK removed
 
 interface NoteEditorToolbarProps {
   onCommand: (command: string, value?: string) => void;
   onInsertImage: () => void;
   onInsertChecklist: () => void;
   onSetReminder: () => void;
-  onLinkNote: () => void;
+  // onLinkNote prop removed
 }
 
 const ToolbarButton: React.FC<{ onClick: () => void, title: string, children: React.ReactNode, isActive?: boolean}> = ({ onClick, title, children, isActive }) => (
@@ -23,7 +24,8 @@ const ToolbarButton: React.FC<{ onClick: () => void, title: string, children: Re
 );
 
 const NoteEditorToolbar: React.FC<NoteEditorToolbarProps> = ({ 
-  onCommand, onInsertImage, onInsertChecklist, onSetReminder, onLinkNote
+  onCommand, onInsertImage, onInsertChecklist, onSetReminder
+  // onLinkNote prop destructured removed
 }) => {
   const formatButton = (cmd: string, label: React.ReactNode, title?: string) => (
     <ToolbarButton onClick={() => onCommand(cmd)} title={title || cmd}>
@@ -58,9 +60,11 @@ const NoteEditorToolbar: React.FC<NoteEditorToolbarProps> = ({
       <ToolbarButton onClick={onInsertImage} title="Indsæt Billede">
         {ICON_IMAGE('w-5 h-5')}
       </ToolbarButton>
+      {/* Removed Link to Note button
       <ToolbarButton onClick={onLinkNote} title="Link til Note">
         {ICON_LINK('w-5 h-5')}
       </ToolbarButton>
+      */}
       <ToolbarButton onClick={onSetReminder} title="Sæt Påmindelse">
         {ICON_CALENDAR('w-5 h-5')}
       </ToolbarButton>
